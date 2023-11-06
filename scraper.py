@@ -7,12 +7,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from time import sleep
 from bs4 import BeautifulSoup
+import re
 
 base_url = 'https://yokatlas.yok.gov.tr/tercih-sihirbazi-t4-tablo.php?p=say'
 
 def get_options():
     options = webdriver.ChromeOptions()
-    # options.add_argument('--headless') 
+    options.add_argument('--headless') 
     headers = {
         "Accept": "application/json, text/javascript, */*; q=0.01",
         "Accept-Encoding": "gzip, deflate, br",
@@ -31,8 +32,8 @@ def get_options():
 
     return options
 
+
 def get_table_header(table_header):
-    print("HEADER CALLED")
     if table_header:
         header_cells = table_header.find_all('th')
         headers = []
@@ -41,9 +42,20 @@ def get_table_header(table_header):
 
             if cell_text:
                 headers.append(cell_text)
+        # print(headers)
         return headers
 
-def scrape_page(driver, headers):
+
+def scrape_page(driver, headers, body):
+
+    def is_valid_text(text):
+        return re.search(r'\w', text)
+    
+    def get_clean_text(text_arr):
+        for text in text_arr:
+            if(text):
+                return text.strip().rstrip('*')
+
     try:
         table = driver.find_element(By.ID, 'mydata')
         outer_html = table.get_attribute('outerHTML')
@@ -53,9 +65,26 @@ def scrape_page(driver, headers):
             table_head = soup.find('thead')
             headers.extend(get_table_header(table_head))
 
-        print(headers)
+        table_body = soup.find('tbody')
+        scraped_rows = []
+        columns = []
+        if table_body:
+            rows = table_body.find_all('tr')
+            for row in rows[:2]:
+                cells = row.find_all('td')
+                for cell in cells:
+                    text_candidates = cell.find_all(string=is_valid_text, recursive=True)
+                    cell_text = get_clean_text(text_candidates)
+                    if cell_text:
+                        if '+' in cell_text:
+                            cell_text = str(sum(int(number) for number in cell_text.split('+')))
+                        
+                        columns.append(cell_text)
+                scraped_rows.append(columns)
 
-    except:
+        body.extend(scraped_rows)
+    except Exception as e: 
+        print(e)
         print('Error while scraping page')
     
 
@@ -81,8 +110,9 @@ def main():
         select.select_by_value('100')
         sleep(1)
         count = 0
-        while (count := count + 1) < 10:
-            scrape_page(driver, headers)
+        body = []
+        while (count := count + 1) < 3:
+            scrape_page(driver, headers, body)
 
             next_button = driver.find_element(By.ID, 'mydata_next')
 
@@ -93,6 +123,9 @@ def main():
                 sleep(1)
                 print("Clicked on 'Sonraki' for the next page")
 
+        print("AFTER SCRAPE: ")
+        print(headers)
+        print(body)
     except TimeoutException:
         print("Timed out waiting for page to load")
     finally:
