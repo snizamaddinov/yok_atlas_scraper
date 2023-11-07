@@ -72,7 +72,7 @@ def get_table_body(soup):
             rows = table_body.find_all('tr')
             scraped_rows = []
 
-            for row in rows[:1]:
+            for row in rows:
                 # print(row)
                 cells = get_cell_texts(row)
                 # print(cells)
@@ -97,7 +97,6 @@ def scrape_page(driver):
 
         header = get_table_header(soup)
 
-        count = 0
         body = []
         while True:
             body += get_table_body(soup)
