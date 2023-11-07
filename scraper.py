@@ -8,6 +8,7 @@ from selenium.webdriver.support.ui import Select
 from time import sleep
 from bs4 import BeautifulSoup
 import re
+import pandas as pd
 
 base_url = 'https://yokatlas.yok.gov.tr/tercih-sihirbazi-t4-tablo.php?p=say'
 
@@ -33,44 +34,41 @@ def get_options():
     return options
 
 
-def get_table_header(table_header):
-    if table_header:
-        header_cells = table_header.find_all('th')
-        headers = []
-        for cell in header_cells:
-            cell_text = ''.join(cell.find_all(string=True, recursive=False)).strip().rstrip('*')
+def get_table_header(soup):
+    try:
+        table_header = soup.find('thead')
 
-            if cell_text:
-                headers.append(cell_text)
-        # print(headers)
-        return headers
+        if table_header:
+            header_cells = table_header.find_all('th')
+            headers = []
+            for cell in header_cells:
+                cell_text = ''.join(cell.find_all(string=True, recursive=False)).strip().rstrip('*')
+
+                if cell_text:
+                    headers.append(cell_text)
+                    
+            return headers
+    except Exception as e:
+        print(e)
+        print('Error while scraping table header')
 
 
-def scrape_page(driver, headers, body):
-
-    def is_valid_text(text):
-        return re.search(r'\w', text)
+def get_table_body(soup):
+    is_valid_text = lambda text: re.search(r'\w', text)
     
     def get_clean_text(text_arr):
         for text in text_arr:
             if(text):
                 return text.strip().rstrip('*')
-
+    
     try:
-        table = driver.find_element(By.ID, 'mydata')
-        outer_html = table.get_attribute('outerHTML')
-        soup = BeautifulSoup(outer_html, 'html.parser')
-
-        if not headers:
-            table_head = soup.find('thead')
-            headers.extend(get_table_header(table_head))
-
         table_body = soup.find('tbody')
-        scraped_rows = []
-        columns = []
+        
         if table_body:
             rows = table_body.find_all('tr')
+            scraped_rows = []
             for row in rows[:2]:
+                columns = []
                 cells = row.find_all('td')
                 for cell in cells:
                     text_candidates = cell.find_all(string=is_valid_text, recursive=True)
@@ -82,11 +80,54 @@ def scrape_page(driver, headers, body):
                         columns.append(cell_text)
                 scraped_rows.append(columns)
 
-        body.extend(scraped_rows)
+            return scraped_rows
+    except Exception as e:
+        print(e)
+        print('Error while scraping table body')
+
+
+def scrape_page(driver):
+    try:
+        table = driver.find_element(By.ID, 'mydata')
+        outer_html = table.get_attribute('outerHTML')
+        soup = BeautifulSoup(outer_html, 'html.parser')
+
+        header = get_table_header(soup)
+
+        count = 0
+        body = []
+        while True:
+            body += get_table_body(soup)
+
+            next_button = driver.find_element(By.ID, 'mydata_next')
+            if 'disabled' in next_button.get_attribute('class'):
+                break
+            else:
+                next_button.click()
+                sleep(0.5)
+                print("Clicked on 'Sonraki' for the next page")
+                table = driver.find_element(By.ID, 'mydata')
+                outer_html = table.get_attribute('outerHTML')
+                soup = BeautifulSoup(outer_html, 'html.parser')
+
+        return header, body
+
     except Exception as e: 
         print(e)
         print('Error while scraping page')
-    
+
+
+
+
+def save_to_csv(headers, body, file_name):
+    try:
+
+        df = pd.DataFrame(body, columns=headers)
+
+        df.to_csv(file_name, index=False, sep=',', encoding='utf-8-sig')
+    except Exception as e:
+        print(e)
+        print('Error while saving to csv')
 
 def main():
     headers = []
@@ -109,23 +150,13 @@ def main():
         # Select 100 entries per page
         select.select_by_value('100')
         sleep(1)
-        count = 0
-        body = []
-        while (count := count + 1) < 3:
-            scrape_page(driver, headers, body)
-
-            next_button = driver.find_element(By.ID, 'mydata_next')
-
-            if 'disabled' in next_button.get_attribute('class'):
-                break
-            else:
-                next_button.click()
-                sleep(1)
-                print("Clicked on 'Sonraki' for the next page")
-
+        
+        headers, body = scrape_page(driver)
+        
         print("AFTER SCRAPE: ")
         print(headers)
-        print(body)
+        # print(body)
+        save_to_csv(headers, body, 'data.csv')
     except TimeoutException:
         print("Timed out waiting for page to load")
     finally:
