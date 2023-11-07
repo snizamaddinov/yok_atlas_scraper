@@ -11,6 +11,7 @@ import re
 import csv
 from dotenv import dotenv_values
 import json
+import os
 
 
 def get_table_header(soup):
@@ -39,10 +40,30 @@ def get_table_body(soup):
             if text:
                 return text.strip().rstrip('*').rstrip('-')
 
+    def get_cell_texts(row):
+        result = []
+        for cell in row.find_all('td'):
+            red_class_element = cell.find(attrs={'color': 'red'})
+            if red_class_element:
+                result.append(get_clean_text( [ red_class_element.get_text().strip().rstrip('*').rstrip('-') ] ) )
+            else:
+                result.append(get_clean_text(cell.find_all(string=is_valid_text, recursive=True)))
+
+        return result
+
     def process_cell_text(cell_text):
-        if '+' in cell_text:
-            cell_text = str(sum(int(number) for number in cell_text.split('+')))
-        return cell_text
+        result = [cell_text]
+
+        if not cell_text:
+            result = ['']
+
+        elif re.search(r'.*\-[0-9]+$', cell_text):
+            result = cell_text.split('-')
+        
+        elif '+' in cell_text:
+            result = [ str(sum(int(number) for number in cell_text.split('+'))) ]
+
+        return result
     
     try:
         table_body = soup.find('tbody')
@@ -52,9 +73,14 @@ def get_table_body(soup):
             scraped_rows = []
 
             for row in rows[:1]:
-                cells = [ get_clean_text( cell.find_all(string=is_valid_text, recursive=True) )  for cell in row.find_all('td')]
-                columns = [process_cell_text(cell) for cell in cells if cell]
-                
+                # print(row)
+                cells = get_cell_texts(row)
+                # print(cells)
+                columns = [cell_text for cell in cells
+                           for cell_text in process_cell_text(cell)]
+                # print(columns)
+                if not columns[0]:
+                    del columns[0]
                 scraped_rows.append(columns)
 
             return scraped_rows
@@ -97,12 +123,16 @@ def scrape_page(driver):
 
 def save_to_csv(headers, body, file_name):
     try:
-        with open(file_name, 'a', newline='', encoding='utf-8-sig') as file:
+        with open(file_name, 'a+', newline='', encoding='utf-8-sig') as file:
+            file.seek(0)
+            header = file.readline()
+            header = header.strip()
+
             writer = csv.writer(file)
-            
-            # Check if the file is empty, if so, write the headers
-            if file.tell() == 0:
+            if not header or len(header) < 10:
                 writer.writerow(headers)
+            
+            file.seek(0, os.SEEK_END)
 
             # Append new rows
             for row in body:
@@ -142,18 +172,6 @@ def load_page(driver, url, timeout=5):
     sleep(1)
 
 
-def get_urls():
-    yield 'https://yokatlas.yok.gov.tr/tercih-sihirbazi-t4-tablo.php?p=say'
-    yield 'https://yokatlas.yok.gov.tr/tercih-sihirbazi-t4-tablo.php?p=say'
-    yield 'https://yokatlas.yok.gov.tr/tercih-sihirbazi-t3-tablo.php?p=tyt'
-
-
-def get_file_names():
-    yield 'data.csv'
-    yield 'data2.csv'
-    yield 'data3.csv'
-
-
 def main():
     config = dotenv_values(".env")
     service = Service()
@@ -173,6 +191,11 @@ def main():
                 sleep(1)
                 
                 headers, body = scrape_page(driver)
+
+                if 'p=tyt' in url:
+                    for row in body: 
+                        row[-1], row[-2] = row[-2], row[-1]
+
                 save_to_csv(headers, body, file_name)
 
                 print("SCRAPED: ", url)
