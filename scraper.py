@@ -54,12 +54,18 @@ def get_table_header(soup):
 
 
 def get_table_body(soup):
-    is_valid_text = lambda text: re.search(r'\w', text)
-    
+    def is_valid_text(text):
+    return re.search(r'\w', text)
+
     def get_clean_text(text_arr):
         for text in text_arr:
-            if(text):
+            if text:
                 return text.strip().rstrip('*')
+
+    def process_cell_text(cell_text):
+        if '+' in cell_text:
+            cell_text = str(sum(int(number) for number in cell_text.split('+')))
+        return cell_text
     
     try:
         table_body = soup.find('tbody')
@@ -67,17 +73,12 @@ def get_table_body(soup):
         if table_body:
             rows = table_body.find_all('tr')
             scraped_rows = []
-            for row in rows[:2]:
+
+            for row in rows:
                 columns = []
-                cells = row.find_all('td')
-                for cell in cells:
-                    text_candidates = cell.find_all(string=is_valid_text, recursive=True)
-                    cell_text = get_clean_text(text_candidates)
-                    if cell_text:
-                        if '+' in cell_text:
-                            cell_text = str(sum(int(number) for number in cell_text.split('+')))
-                        
-                        columns.append(cell_text)
+
+                cells = [ get_clean_text( cell.find_all(string=is_valid_text, recursive=True) )  for cell in row.find_all('td')]
+                columns = [process_cell_text(cell) for cell in cells if cell]
                 scraped_rows.append(columns)
 
             return scraped_rows
@@ -104,7 +105,8 @@ def scrape_page(driver):
                 break
             else:
                 next_button.click()
-                sleep(0.5)
+                sleep(1)
+
                 print("Clicked on 'Sonraki' for the next page")
                 table = driver.find_element(By.ID, 'mydata')
                 outer_html = table.get_attribute('outerHTML')
