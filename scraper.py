@@ -80,7 +80,7 @@ def get_table_body(soup):
                 # print(cells)
                 columns = [cell_text for cell in cells
                            for cell_text in process_cell_text(cell)]
-                # print(columns)
+                
                 if not columns[0]:
                     del columns[0]
                 scraped_rows.append(columns)
@@ -111,7 +111,6 @@ def scrape_page(driver):
                 next_button.click()
                 sleep(1)
 
-                # print("Clicked on 'Sonraki' for the next page")
                 table = driver.find_element(By.ID, 'mydata')
                 outer_html = table.get_attribute('outerHTML')
                 soup = BeautifulSoup(outer_html, 'html.parser')
