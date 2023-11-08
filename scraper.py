@@ -25,7 +25,6 @@ def get_table_header(soup):
             headers = [get_clean_header_text(cell) for cell in header_cells if get_clean_header_text(cell)]
 
             return headers
-
     except Exception as e:
         print(e)
         print('Error while scraping table header')
@@ -75,9 +74,7 @@ def get_table_body(soup):
             scraped_rows = []
 
             for row in rows:
-                # print(row)
                 cells = get_cell_texts(row)
-                # print(cells)
                 columns = [cell_text for cell in cells
                            for cell_text in process_cell_text(cell)]
                 
@@ -179,7 +176,6 @@ def main():
     options = get_options()
     urls = json.loads(config['URLS'])
     file_name = config['FILE_NAME']
-    # exit()
 
     with webdriver.Chrome(service=service, options=options) as driver:
        for url in urls:
