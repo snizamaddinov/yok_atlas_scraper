@@ -83,6 +83,7 @@ def get_table_body(soup):
                     del columns[0]
                 scraped_rows.append(columns)
 
+
             return scraped_rows
     except Exception as e:
         print(e)
