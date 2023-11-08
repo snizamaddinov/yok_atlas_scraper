@@ -38,17 +38,19 @@ def get_table_body(soup):
     def get_clean_text(text_arr):
         for text in text_arr:
             if text:
-                return text.strip().rstrip('*').rstrip('-')
+                return text.strip().rstrip('*').rstrip('-').replace(',', '.')
 
     def get_cell_texts(row):
         result = []
         for cell in row.find_all('td'):
             red_class_element = cell.find(attrs={'color': 'red'})
             if red_class_element:
-                result.append(get_clean_text( [ red_class_element.get_text().strip().rstrip('*').rstrip('-') ] ) )
+                text = get_clean_text( [ red_class_element.get_text() ] ) 
             else:
-                result.append(get_clean_text(cell.find_all(string=is_valid_text, recursive=True)))
+                text = get_clean_text(cell.find_all(string=is_valid_text, recursive=True))
 
+            result.append(text)
+            
         return result
 
     def process_cell_text(cell_text):
