@@ -116,7 +116,7 @@ def scrape_page(driver):
 
     except Exception as e: 
         print(e)
-        print('Error while scraping page')
+        print('Error in scrape_page method')
 
 
 def save_to_csv(headers, body, file_name):
