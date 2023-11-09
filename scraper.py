@@ -132,7 +132,6 @@ def save_to_csv(headers, body, file_name):
             
             file.seek(0, os.SEEK_END)
 
-            # Append new rows
             for row in body:
                 writer.writerow(row)
 
