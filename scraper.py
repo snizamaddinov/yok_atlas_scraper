@@ -174,9 +174,9 @@ def load_page(driver, url, timeout=5):
 
 
 def main():
-    config = dotenv_values(".env")
     service = Service()
     options = get_options()
+    config = dotenv_values(".env")
     urls = json.loads(config['URLS'])
     file_name = config['FILE_NAME']
 
