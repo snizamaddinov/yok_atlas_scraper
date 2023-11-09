@@ -86,7 +86,7 @@ def get_table_body(soup):
             return scraped_rows
     except Exception as e:
         print(e)
-        print('Error while scraping table body')
+        print('Error in scrape table body method')
 
 
 def scrape_page(driver):
