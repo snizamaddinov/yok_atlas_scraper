@@ -208,7 +208,7 @@ def main():
 
             except Exception as e:
                 print(e)
-                print('Error while scraping')
+                print('Error in main loop')
 
 
 if __name__ == '__main__':
