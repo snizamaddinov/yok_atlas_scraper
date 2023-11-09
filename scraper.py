@@ -170,6 +170,7 @@ def load_page(driver, url, timeout=5):
         sleep(1)
     except Exception as e:
         print(e)
+        print('Error in load page method')
 
 
 def main():
