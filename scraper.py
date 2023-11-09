@@ -163,10 +163,13 @@ def get_options():
 
 
 def load_page(driver, url, timeout=5):
-    driver.get(url)
-    element_present = EC.presence_of_element_located((By.ID, 'mydata_processing'))
-    WebDriverWait(driver, timeout).until(element_present)
-    sleep(1)
+    try:
+        driver.get(url)
+        element_present = EC.presence_of_element_located((By.ID, 'mydata_processing'))
+        WebDriverWait(driver, timeout).until(element_present)
+        sleep(1)
+    except Exception as e:
+        print(e)
 
 
 def main():
