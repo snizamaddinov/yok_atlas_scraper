@@ -1,4 +1,5 @@
 from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service   
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
@@ -24,6 +25,8 @@ def get_table_header(soup):
             header_cells = table_header.find_all('th')
             headers = [get_clean_header_text(cell) for cell in header_cells if get_clean_header_text(cell)]
 
+            headers.insert(2, 'Fakülte')
+            headers.insert(4, 'Öğretim Süresi')
             return headers
     except Exception as e:
         print(e)
@@ -32,23 +35,40 @@ def get_table_header(soup):
 
 def get_table_body(soup):
     def is_valid_text(text):
-        return re.search(r'\w', text)
+        result = re.search(r'\w', text)
+        return result
 
     def get_clean_text(text_arr):
+        cleaned_text = []
         for text in text_arr:
             if text:
-                return text.strip().rstrip('*').rstrip('-').replace(',', '.')
+                cleaned_text.append(text.strip().rstrip('*').rstrip('-').replace(',', '.'))
+
+        return cleaned_text
 
     def get_cell_texts(row):
         result = []
         for cell in row.find_all('td'):
+            for a_tag in cell.find_all('a'):
+                href = a_tag.get('href', '')
+                anchor_text = a_tag.get_text(strip=True)
+                match = re.search(r'\?y=(\d+)', href)
+                if match and match.group(1) == anchor_text:
+                    continue
+
+                a_tag.decompose()
+
             red_class_element = cell.find(attrs={'color': 'red'})
             if red_class_element:
-                text = get_clean_text( [ red_class_element.get_text() ] ) 
+                text = get_clean_text( [ red_class_element.get_text() ] )
             else:
-                text = get_clean_text(cell.find_all(string=is_valid_text, recursive=True))
+                findall_result = cell.find_all(string=is_valid_text, recursive=True)
+                text = get_clean_text(findall_result)
 
-            result.append(text)
+            if isinstance(text, list):
+                result += text
+            else:
+                result.append(text)
             
         return result
 
@@ -73,7 +93,7 @@ def get_table_body(soup):
             rows = table_body.find_all('tr')
             scraped_rows = []
 
-            for row in rows:
+            for row in rows[:2]:
                 cells = get_cell_texts(row)
                 columns = [cell_text for cell in cells
                            for cell_text in process_cell_text(cell)]
@@ -96,13 +116,12 @@ def scrape_page(driver):
         soup = BeautifulSoup(outer_html, 'html.parser')
 
         header = get_table_header(soup)
-
         body = []
         while True:
             body += get_table_body(soup)
 
             next_button = driver.find_element(By.ID, 'mydata_next')
-            if 'disabled' in next_button.get_attribute('class'):
+            if True or 'disabled' in next_button.get_attribute('class'):
                 break
             else:
                 next_button.click()
@@ -174,12 +193,12 @@ def load_page(driver, url, timeout=5):
 
 
 def main():
-    service = Service()
+    driver_path = ChromeDriverManager().install()
+    service = Service(executable_path=driver_path)
     options = get_options()
     config = dotenv_values(".env")
     urls = json.loads(config['URLS'])
     file_name = config['FILE_NAME']
-
     with webdriver.Chrome(service=service, options=options) as driver:
        for url in urls:
             try:
