@@ -93,7 +93,7 @@ def get_table_body(soup):
             rows = table_body.find_all('tr')
             scraped_rows = []
 
-            for row in rows[:2]:
+            for row in rows:
                 cells = get_cell_texts(row)
                 columns = [cell_text for cell in cells
                            for cell_text in process_cell_text(cell)]
@@ -121,7 +121,7 @@ def scrape_page(driver):
             body += get_table_body(soup)
 
             next_button = driver.find_element(By.ID, 'mydata_next')
-            if True or 'disabled' in next_button.get_attribute('class'):
+            if 'disabled' in next_button.get_attribute('class'):
                 break
             else:
                 next_button.click()
